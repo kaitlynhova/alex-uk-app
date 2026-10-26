@@ -1,4 +1,4 @@
-import { CATEGORIES, visibleJobs, matchRole, safeURL } from './job-policy.mjs';
+import { CATEGORIES, LOCATION_FILTERS, visibleJobs, matchRole, safeURL, matchesLocation, permitNote, isUKWideRemote } from './job-policy.mjs';
 
 (function(){
 'use strict';
@@ -25,7 +25,7 @@ let view=[], shown=0; const PAGE=60;
 let tab='all';
 const st={q:'',town:'',townSel:new Set(),routes:new Set(['Skilled Worker']),ratings:new Set(),lens:new Set(),sort:'relevance',hiringOnly:true,categories:new Set(),seniorOnly:false};
 let jobsIndex=new Map();
-function rebuildJobs(){jobsIndex=new Map();for(const [key,jobs] of Object.entries(hiring?.orgs||{}))jobsIndex.set(key,visibleJobs(jobs,{categories:[...st.categories],seniorOnly:st.seniorOnly}));}
+function rebuildJobs(){jobsIndex=new Map();for(const [key,jobs] of Object.entries(hiring?.orgs||{}))jobsIndex.set(key,visibleJobs(jobs,{categories:[...st.categories],seniorOnly:st.seniorOnly,locations:[...st.townSel],locationQuery:st.town}));}
 function jobsFor(o){return jobsIndex.get(o.key)||[];}
 function sourceFor(o){return hiring?.sources?.find(s=>s.key===o.key);}
 function formatTime(value){return new Date(value).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});}
@@ -131,7 +131,7 @@ function renderLenses(){const el=$('lenses');el.innerHTML='';
     b.innerHTML='<span>'+esc(Ln.name)+'</span><span class="c">'+c.toLocaleString()+'</span>';
     b.addEventListener('click',()=>{st.lens.has(Ln.id)?st.lens.delete(Ln.id):st.lens.add(Ln.id);b.setAttribute('aria-pressed',st.lens.has(Ln.id));applyFilters();});el.appendChild(b);}}
 function renderTownChips(){const el=$('townchips');el.innerHTML='';
-  for(const t of ['London','Cambridge','Edinburgh','Glasgow','Remote']){const k=t.toLowerCase();const b=document.createElement('button');b.className='chip';b.textContent=t;b.dataset.t=k;b.setAttribute('aria-pressed',st.townSel.has(k)?'true':'false');
+  for(const [k,t] of LOCATION_FILTERS){const b=document.createElement('button');b.className='chip';b.textContent=t;b.dataset.t=k;b.setAttribute('aria-pressed',st.townSel.has(k)?'true':'false');
     b.addEventListener('click',()=>{st.townSel.has(k)?st.townSel.delete(k):st.townSel.add(k);syncTownChips();applyFilters();});el.appendChild(b);}}
 function syncTownChips(){for(const b of $('townchips').children)b.setAttribute('aria-pressed',st.townSel.has(b.dataset.t)?'true':'false');}
 let deb;$('q').addEventListener('input',()=>{clearTimeout(deb);deb=setTimeout(()=>{st.q=$('q').value.trim().toLowerCase();applyFilters();},120);});
@@ -143,11 +143,11 @@ function setupHiring(){
   $('hiringgroup').hidden=false;$('stat-hiring').hidden=false;
   const sources=hiring?.sources||[], active=Object.values(hiring?.orgs||{}).flatMap(j=>visibleJobs(j));
   const fresh=hiring&&Date.parse(hiring.expiresAt)>Date.now();
-  $('hiringhint').textContent='Only UK postings verified within 24 hours and relevant to Alex. Unchecked, expired and unavailable jobs are excluded.';
-  $('feedstatus').textContent=!hiring?'Vacancy data is unavailable. No jobs can currently be verified. Retry the refresh.':!fresh?'The vacancy checks have expired. Refresh to verify current openings.':active.length.toLocaleString()+' relevant UK postings · checked '+formatTime(hiring.generatedAt)+'. Individual jobs may close between checks.';
+  $('hiringhint').textContent='Only UK and Ireland postings verified within 24 hours and relevant to Alex. Unchecked, expired and unavailable jobs are excluded.';
+  $('feedstatus').textContent=!hiring?'Vacancy data is unavailable. No jobs can currently be verified. Retry the refresh.':!fresh?'The vacancy checks have expired. Refresh to verify current openings.':active.length.toLocaleString()+' relevant UK & Ireland postings · checked '+formatTime(hiring.generatedAt)+'. Individual jobs may close between checks.';
   const incomplete=sources.filter(s=>s.status!=='ok').length;
-  $('coveragesummary').textContent=sources.length+' employer sources · '+incomplete+' need attention';
-  $('coverage-list').innerHTML=sources.map(s=>'<div class="coverage-row"><a href="'+esc(safeURL(s.url)||'#')+'" target="_blank" rel="noopener">'+esc(s.name)+'</a><small>'+esc(!fresh?'Check expired':s.status==='unavailable'?'Could not verify — check employer site':s.status==='partial'?'Some vacancies could not be checked':s.matched?'Verified relevant openings: '+s.matched:'No relevant UK openings found in this check')+'</small>'+((s.expired||s.outsideUK)?'<small>Excluded: '+(s.expired||0)+' past closing date · '+(s.outsideUK||0)+' outside confirmed UK locations</small>':'')+(s.message?'<span class="err">'+esc(s.message)+'</span>':'')+'</div>').join('');
+  $('coveragesummary').textContent=sources.length+' employer sources · '+sources.reduce((n,s)=>n+(s.seen||0),0).toLocaleString()+' listings screened · '+incomplete+' need attention';
+  $('coverage-list').innerHTML=sources.map(s=>'<div class="coverage-row"><a href="'+esc(safeURL(s.url)||'#')+'" target="_blank" rel="noopener">'+esc(s.name)+'</a><small>'+esc(!fresh?'Check expired':s.status==='unavailable'?'Could not verify — check employer site':s.status==='partial'?'Some vacancies could not be checked':s.matched?'Verified relevant openings: '+s.matched:'No relevant UK or Ireland openings found in this check')+'</small>'+((s.expired||s.outsideSupportedLocations)?'<small>Excluded: '+(s.expired||0)+' past closing date · '+(s.outsideSupportedLocations||0)+' outside confirmed UK / Ireland locations</small>':'')+(s.message?'<span class="err">'+esc(s.message)+'</span>':'')+'</div>').join('');
 }
 for(const category of CATEGORIES){const b=document.createElement('button');b.className='chip';b.textContent=category;b.setAttribute('aria-pressed','false');b.addEventListener('click',()=>{st.categories.has(category)?st.categories.delete(category):st.categories.add(category);b.setAttribute('aria-pressed',st.categories.has(category));applyFilters();});$('rolechips').appendChild(b);}
 $('senioronly').addEventListener('change',()=>{st.seniorOnly=$('senioronly').checked;applyFilters();});
@@ -171,8 +171,10 @@ function applyFilters(){rebuildJobs();if(!orgs.length)return;
     if(st.hiringOnly&&!jobsFor(o).length)return false;
     if((st.categories.size||st.seniorOnly)&&!jobsFor(o).length)return false;
     if(q&&!o.lname.includes(q)&&!jobsFor(o).some(j=>j.t.toLowerCase().includes(q)||j.e.toLowerCase().includes(q)))return false;
-    const locations=jobsFor(o).length?jobsFor(o).map(j=>j.l.toLowerCase()):[o.towns];
-    if((t||st.townSel.size)&&!locations.some(loc=>(!t||loc.includes(t))&&(!st.townSel.size||[...st.townSel].some(x=>loc.includes(x)))))return false;
+    if((t||st.townSel.size)&&!jobsFor(o).length){
+      // An employer with verified roles elsewhere must not reappear through its office address.
+      if(visibleJobs(hiring?.orgs?.[o.key]||[]).length||!matchesLocation({l:o.towns},[...st.townSel],t))return false;
+    }
     if(st.lens.size){let ok=false;for(const l of st.lens)if(o.lens.has(l)){ok=true;break;}if(!ok)return false;}
     if(st.routes.size||st.ratings.size){const ok=o.routes.some(r=>(!st.routes.size||st.routes.has(r.route))&&(!st.ratings.size||st.ratings.has(r.rating)));if(!ok)return false;}
     return true;});
@@ -181,7 +183,7 @@ function applyFilters(){rebuildJobs();if(!orgs.length)return;
   else if(st.sort==='town')view.sort((a,b)=>a.town.localeCompare(b.town)||cmpName(a,b));
   else view.sort((a,b)=>(Math.max(0,...jobsFor(b).map(j=>matchRole(j.t,j.description).score))-Math.max(0,...jobsFor(a).map(j=>matchRole(j.t,j.description).score)))||cmpName(a,b));
   shown=0;$('list').innerHTML='';renderMore();
-  $('cnt').textContent=view.length.toLocaleString();$('cntlabel').textContent=(view.length===1?'organisation':'organisations')+(tab==='saved'?' saved':'');
+  $('cnt').textContent=view.length.toLocaleString();$('cntlabel').textContent=(view.length===1?'organisation':'organisations')+(tab==='saved'?' saved':'')+' · '+view.reduce((n,o)=>n+jobsFor(o).length,0)+' verified roles';
   $('empty').hidden=view.length>0;
   $('empty').textContent=st.hiringOnly?'No verified relevant jobs match these filters. This does not mean the employer has no vacancies. Check source coverage above, refresh, or turn off the verified-jobs filter to browse the register.':'No sponsors match these filters.';
   updateStats();
@@ -204,10 +206,10 @@ function card(o){const d=document.createElement('article');d.className='org';
   const tags=[...o.lens].map(id=>'<span class="tag">'+esc(LENSES.find(l=>l.id===id).name)+'</span>').join('');
   const qn=encodeURIComponent(o.name);
   const jobs=jobsFor(o);
-  const jobHTML=j=>{const m=matchRole(j.t,j.description);return '<li><a href="'+esc(safeURL(j.u))+'" target="_blank" rel="noopener">'+esc(j.t)+'</a><span class="reason">'+esc(m.categories.join(' · '))+' — '+esc(m.reasons.join('; '))+'</span><span class="jm">'+esc([j.l,j.salary].filter(Boolean).join(' · '))+'</span><span class="jm">Checked '+esc(formatTime(j.verifiedAt))+(j.closesAt?' · Closes '+esc(j.closesAt.slice(0,10)):' · No closing date published')+' · '+esc(j.e)+'</span><span class="jm">'+esc(j.evidence)+'</span></li>';};
+  const jobHTML=j=>{const m=matchRole(j.t,j.description);return '<li><a href="'+esc(safeURL(j.u))+'" target="_blank" rel="noopener">'+esc(j.t)+'</a><span class="reason">'+esc(m.categories.join(' · '))+' — '+esc(m.reasons.join('; '))+'</span>'+(j.review?'<span class="review-note"><strong>'+esc(j.review.fit)+'</strong> · '+esc(j.review.summary)+'<br>Check: '+esc(j.review.caveat)+'</span>':'')+'<span class="jm">'+esc([j.l,j.salary].filter(Boolean).join(' · '))+'</span><span class="jm">Checked '+esc(formatTime(j.verifiedAt))+(j.closesAt?' · Closes '+esc(j.closesAt.slice(0,10)):' · No closing date published')+' · '+esc(j.e)+'</span><span class="jm">'+esc(j.evidence)+'</span>'+(isUKWideRemote(j.l,j.country)?'<span class="jm">UK-wide remote option — includes Scotland; confirm working arrangements.</span>':'')+(permitNote(j)?'<span class="jm">'+esc(permitNote(j))+'</span>':'')+'</li>';};
   const jobsHtml=jobs.length?'<ul class="jobs">'+jobs.slice(0,6).map(jobHTML).join('')+'</ul>'+(jobs.length>6?'<details><summary>Show all '+jobs.length+' verified roles</summary><ul class="jobs">'+jobs.slice(6).map(jobHTML).join('')+'</ul></details>':''):'<p class="unverified">'+(sourceFor(o)?'No verified matches in the current feed. See source coverage above.':'This employer’s vacancies have not been checked.')+'</p>';
   const careers=safeURL(sourceFor(o)?.url)||'https://www.google.com/search?q='+qn+'+careers+jobs';
-  d.innerHTML='<div><div class="name">'+hl(o.name)+(jobs.length?' <span class="hire">Verified matches · '+jobs.length+'</span>':'')+'</div>'+(where?'<div class="where">Registered address: '+esc(where)+'</div>':'')+'<div class="routes">'+routes+'</div>'+(tags?'<div class="lenses">'+tags+'</div>':'')+jobsHtml+'</div>'
+  d.innerHTML='<div><div class="name">'+hl(o.name)+(jobs.length?' <span class="hire">Verified matches · '+jobs.length+'</span>':'')+'</div>'+(where?'<div class="where">UK register address: '+esc(where)+'</div>':'')+'<div class="routes">'+routes+'</div>'+(tags?'<div class="lenses">'+tags+'</div>':'')+jobsHtml+'</div>'
    +'<div class="acts"><button class="star" aria-pressed="'+saved.has(o.key)+'" aria-label="Save '+esc(o.name)+'">'+STAR+'</button>'
    +'<a href="'+esc(careers)+'" target="_blank" rel="noopener">Careers</a>'
    +'<a href="https://www.linkedin.com/search/results/companies/?keywords='+qn+'" target="_blank" rel="noopener">LinkedIn</a>'

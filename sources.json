@@ -92,5 +92,43 @@
     "type": "greenhouse",
     "board": "databricks",
     "url": "https://boards.greenhouse.io/databricks"
+  },
+  {
+    "id": "trustpilot",
+    "name": "Trustpilot",
+    "sponsorName": "Trustpilot Ltd",
+    "type": "greenhouse",
+    "board": "trustpilot",
+    "url": "https://boards.greenhouse.io/trustpilot"
+  },
+  {
+    "id": "hubspotjobs",
+    "name": "HubSpot",
+    "sponsorName": "HubSpot UK Holdings Limited",
+    "type": "greenhouse",
+    "board": "hubspotjobs",
+    "url": "https://boards.greenhouse.io/hubspotjobs"
+  },
+  {
+    "id": "fanduel",
+    "name": "FanDuel",
+    "sponsorName": "FanDuel Limited",
+    "type": "greenhouse",
+    "board": "fanduel",
+    "url": "https://boards.greenhouse.io/fanduel"
+  },
+  {
+    "id": "susquehanna",
+    "name": "Susquehanna",
+    "sponsorName": "Susquehanna Dublin Limited - UK Branch",
+    "type": "icims",
+    "url": "https://careers.sig.com/jobs"
+  },
+  {
+    "id": "right-there",
+    "name": "Right There",
+    "sponsorName": "Right There",
+    "type": "right-there",
+    "url": "https://careers.rightthere.org/vacancies/vacancy-search-results.aspx?view=list"
   }
 ]

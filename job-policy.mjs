@@ -1,6 +1,10 @@
 // Shared by the collector and browser so stale data cannot bypass the filters.
 export const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 export const CATEGORIES = ['Marketing', 'Thought leadership', 'Executive communications', 'Content strategy', 'Communications'];
+export const LOCATION_FILTERS = [
+  ['scotland', 'Scotland'], ['ireland', 'Ireland (Republic)'], ['northern-ireland', 'Northern Ireland'],
+  ['london', 'London'], ['cambridge', 'Cambridge'], ['edinburgh', 'Edinburgh'], ['glasgow', 'Glasgow'], ['dublin', 'Dublin'], ['remote', 'Remote']
+];
 
 export function safeURL(value) {
   try { const u = new URL(value); return u.protocol === 'https:' ? u.href : ''; } catch { return ''; }
@@ -25,11 +29,65 @@ export function matchRole(title = '', description = '') {
   return { categories, reasons, score: 50 + (strategic ? 25 : 0) + (senior ? 15 : 0), level: senior ? 'Senior / leadership' : 'Other levels' };
 }
 
+const SCOTLAND = /\b(scotland|edinburgh|glasgow|aberdeen|dundee|inverness|stirling|perth|paisley|fife|st andrews|ayrshire|lanarkshire|renfrewshire|lothian|falkirk|dumfries|galloway|highlands?|orkney|shetland|hebrides)\b/i;
+const NORTHERN_IRELAND = /\b(northern ireland|belfast|derry|londonderry|lisburn|newry|armagh|antrim|tyrone|fermanagh|enniskillen|coleraine|ballymena)\b/i;
+const IRELAND = /\b(ireland|eire|éire|dublin|cork|galway|limerick|waterford|kilkenny|sligo|donegal|drogheda|dundalk|wicklow|wexford|kildare|athlone)\b/i;
+const OTHER_UK = /\b(united kingdom|great britain|uk|england|wales|london|cambridge|oxford|manchester|bristol|birmingham|leeds|cardiff|nottingham|reading|brighton|newcastle|sheffield|liverpool|bath|exeter|york|southampton|watford|hertford|carshalton)\b/i;
+const UK_COUNTRY = /^(gb|gbr|uk|united kingdom|great britain|england|wales|scotland|northern ireland)$/i;
+const IE_COUNTRY = /^(ie|irl|ireland|republic of ireland|eire|éire)$/i;
+
+function locationParts(location) {
+  return String(location).split(/[;|•]/).map(part => part
+    .replace(/\bnew (?:york|england)\b/gi, '')
+    .replace(/\b(?:cambridge|london|oxford|manchester|birmingham|reading|bristol|brighton|newcastle|york|dublin|cork|galway|waterford|perth|aberdeen|dundee|stirling|belfast)\s*,\s*(?:MA|CA|NY|NJ|TX|AL|PA|NH|CT|ON|OH|MI|VA|WA|SD|FL|California|Ohio|Australia|New Zealand)\b/gi, ''))
+    .filter(part => !/\b(ontario|canada|kentucky|massachusetts|united states|usa|australia|new zealand)\b/i.test(part) || /\b(united kingdom|\bUK\b|republic of ireland)\b/i.test(part));
+}
+
+export function isUKWideRemote(location = '', country = '') {
+  if (country && !UK_COUNTRY.test(country)) return false;
+  return locationParts(location).some(part => /\bremote\s*[-–(: ,]*(?:(?:within|across|anywhere in)\s+)?(?:uk|united kingdom|great britain)\b|\b(?:uk|united kingdom|great britain)\s*[-–): ,]*remote\b/i.test(part)) ||
+    (UK_COUNTRY.test(country) && /^remote(?:\s*\(.*\))?$/i.test(location.trim()));
+}
+
+export function locationRegions(location = '', country = '') {
+  country = country.trim();
+  if (country && !UK_COUNTRY.test(country) && !IE_COUNTRY.test(country)) return [];
+  const regions = new Set();
+  for (const part of locationParts(location)) {
+    if (!IE_COUNTRY.test(country)) {
+      if (SCOTLAND.test(part)) regions.add('scotland');
+      if (NORTHERN_IRELAND.test(part)) regions.add('northern-ireland');
+      if (OTHER_UK.test(part)) regions.add('other-uk');
+    }
+    if (!UK_COUNTRY.test(country) && IRELAND.test(part.replace(/northern ireland/gi, ''))) regions.add('ireland');
+  }
+  if (IE_COUNTRY.test(country)) regions.add('ireland');
+  if (/^scotland$/i.test(country)) regions.add('scotland');
+  if (/^northern ireland$/i.test(country)) regions.add('northern-ireland');
+  if (UK_COUNTRY.test(country) && !regions.size) regions.add('other-uk');
+  return [...regions];
+}
+
 export function isUKLocation(location = '', country = '') {
-  if (country) return /^(gb|gbr|uk|united kingdom|great britain)$/i.test(country.trim());
-  if (/\b(ontario|canada|kentucky|massachusetts|united states|\bUSA\b)\b/i.test(location) && !/united kingdom|\bUK\b/i.test(location)) return false;
-  const unambiguous = location.replace(/\bnew york\b/gi, '').replace(/\b(?:cambridge|london|oxford|manchester|birmingham|reading|bristol|brighton|newcastle|york)\s*,\s*(?:MA|CA|NY|NJ|TX|AL|PA|NH|CT|ON|OH|MI|VA|WA|Australia|New Zealand)\b/gi, '');
-  return /\b(united kingdom|great britain|uk|england|scotland|wales|northern ireland|london|cambridge|oxford|edinburgh|glasgow|manchester|bristol|birmingham|leeds|cardiff|belfast|nottingham|reading|brighton|newcastle|sheffield|liverpool|bath|exeter|york|southampton|watford|hertford|carshalton)\b/i.test(unambiguous);
+  return locationRegions(location, country).some(r => r !== 'ireland');
+}
+export function isSupportedLocation(location = '', country = '') {
+  return locationRegions(location, country).length > 0;
+}
+export function matchesLocation(job, selected = [], query = '') {
+  const regions = locationRegions(job.l, job.country);
+  const matches = value => {
+    if (value === 'scotland') return regions.includes('scotland') || isUKWideRemote(job.l, job.country);
+    if (value === 'ireland' || value === 'northern-ireland') return regions.includes(value);
+    return locationParts(job.l || '').some(part => part.toLowerCase().includes(value));
+  };
+  const text = query.trim().toLowerCase();
+  return (!text || matches(text === 'northern ireland' ? 'northern-ireland' : text)) && (!selected.length || selected.some(matches));
+}
+
+export function permitNote(job) {
+  const ireland = locationRegions(job.l, job.country).includes('ireland');
+  return ireland ? 'Ireland option: Irish employment-permit support and hiring entity not verified; the UK sponsor register does not cover this location.' : '';
 }
 
 export function closingTime(value) {
@@ -51,13 +109,14 @@ export function isActiveJob(job, now = Date.now()) {
     Number.isFinite(checked) && checked <= now && now - checked < MAX_AGE_MS &&
     Number.isFinite(expires) && expires > now &&
     (!job.closesAt || (Number.isFinite(closes) && closes > now)) &&
-    isUKLocation(job.l, job.country) && !!matchRole(job.t, job.description);
+    isSupportedLocation(job.l, job.country) && !!matchRole(job.t, job.description);
 }
 
-export function visibleJobs(jobs = [], { now = Date.now(), categories = [], seniorOnly = false } = {}) {
+export function visibleJobs(jobs = [], { now = Date.now(), categories = [], seniorOnly = false, locations = [], locationQuery = '' } = {}) {
   const seen = new Set();
   return jobs.filter(j => {
     if (!isActiveJob(j, now)) return false;
+    if (!matchesLocation(j, locations, locationQuery)) return false;
     const match = matchRole(j.t, j.description);
     if (seniorOnly && match.level !== 'Senior / leadership') return false;
     if (categories.length && !categories.some(c => match.categories.includes(c))) return false;

@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import http from 'node:http';
 import { chromium } from 'playwright';
 import { collectCambridgePress } from '../lib/cambridge-browser.mjs';
+import { collectRightThere } from '../lib/regional-sources.mjs';
 
 const port = 3197, base = `http://127.0.0.1:${port}`;
 const server = spawn(process.execPath, ['server.mjs'], { env: { ...process.env, PORT: String(port) }, stdio: 'pipe' });
@@ -70,16 +71,36 @@ try {
   await mp.goto(base);await mp.locator('.org').first().waitFor();
   assert.equal(await mp.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Mobile layout should not scroll horizontally');
   await mobile.close();assert.deepEqual(errors,[]);
-  console.log('Browser checks passed: filtering, expiry, failed refresh, missing feed, cached CSV, saving and mobile layout.');
+  const regions=await browser.newContext();const rp=await regions.newPage();
+  await regions.route('**/register.json',r=>r.fulfill({json:register}));
+  const regionalJobs=[job('Marketing Manager','glasgow',{l:'Glasgow'}),job('Thought Leadership Lead','edinburgh',{l:'Edinburgh'}),job('Executive Communications Director','dublin',{l:'Dublin',country:'IE'}),job('Content Strategist','belfast',{l:'Belfast'}),job('Marketing Manager','london',{l:'London'}),job('Senior Marketing Manager','ukremote',{l:'Cardiff, London or Remote (UK)'}),job('Marketing Manager','dublin-ca',{l:'Dublin, CA',country:'US'}),job('Marketing Manager','expired-scotland',{l:'Glasgow',closesAt:'2020-01-01'})];
+  await regions.route('**/hiring.json',r=>r.fulfill({json:{...snapshot,orgs:{[key]:regionalJobs}}}));
+  await rp.goto(base);await rp.locator('.org').first().waitFor();
+  assert.equal(await rp.locator('.jobs a').count(),6);
+  await rp.locator('#townchips').getByRole('button',{name:'Scotland',exact:true}).click();
+  assert.equal(await rp.locator('.jobs a').count(),3);
+  assert.equal(await rp.locator('a[href$="/london"],a[href$="/dublin"]').count(),0);
+  await rp.locator('#townchips').getByRole('button',{name:'Ireland (Republic)',exact:true}).click();
+  assert.equal(await rp.locator('.jobs a').count(),4);
+  assert.ok((await rp.locator('.jobs').textContent()).includes('Irish employment-permit support and hiring entity not verified'));
+  await rp.getByRole('button',{name:'Thought leadership',exact:true}).click();
+  assert.equal(await rp.locator('.jobs a').count(),1);
+  await rp.getByRole('button',{name:'Reset filters'}).click();
+  await rp.locator('#townchips').getByRole('button',{name:'Northern Ireland',exact:true}).click();
+  assert.equal(await rp.locator('.jobs a').count(),1);assert.equal(await rp.locator('.jobs a').first().getAttribute('href'),'https://careers.cambridge.org/jobs/belfast');
+  await rp.setViewportSize({width:390,height:844});assert.ok(await rp.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  await regions.close();
+  console.log('Browser checks passed: filtering, Scotland / Ireland / Northern Ireland, combined locations, expiry, failed refresh, missing feed, cached CSV, saving and mobile layout.');
 
   // Exercise the actual browser collector against a JavaScript-paginated eArcu fixture.
   const fixture=http.createServer((req,res)=>{
     res.setHeader('Content-Type','text/html');
     if(req.url==='/search')res.end(`<h1>Job search</h1><div id="rows"><a href="/jobs/vacancy/research/1/description/">Research Associate</a></div><a href="#" class="scroller_movenext" onclick="const a=document.querySelector('#rows a');a.href='/jobs/vacancy/marketing/2/description/';a.textContent='Marketing Manager';this.remove();return false;">Next</a>`);
+    else if(req.url==='/right-search')res.end(`<h1>2 Vacancies</h1><a id="ApplicationHyperlink1" href="/vacancies/1/research.html">Research Associate</a><a href="#" onclick="const a=document.getElementById('ApplicationHyperlink1');a.href='/vacancies/2/marketing.html';a.textContent='Marketing Manager';this.remove();return false;">Next</a>`);
     else res.end('<main><h1>Marketing Manager</h1><p>Location: Cambridge Country: UK Business Unit: Academic Vacancy Type: Permanent Closing Date: 1 December 2099 Job Title: Marketing Manager</p><a href="/apply/2">Apply now</a></main>');
   });
   await new Promise(r=>fixture.listen(0,'127.0.0.1',r));
-  try {const result=await collectCambridgePress({url:`http://127.0.0.1:${fixture.address().port}/search`});assert.equal(result.seen,2);assert.equal(result.jobs.length,1);assert.equal(result.failed,0);assert.equal(result.jobs[0].t,'Marketing Manager');console.log('Cambridge browser pagination check passed: relevant role found on page two.');}
+  try {const result=await collectCambridgePress({url:`http://127.0.0.1:${fixture.address().port}/search`});assert.equal(result.seen,2);assert.equal(result.jobs.length,1);assert.equal(result.failed,0);assert.equal(result.jobs[0].t,'Marketing Manager');console.log('Cambridge browser pagination check passed: relevant role found on page two.');const regional=await collectRightThere({url:`http://127.0.0.1:${fixture.address().port}/right-search`});assert.equal(regional.seen,2);assert.equal(regional.jobs.length,1);assert.equal(regional.failed,0);console.log('Right There browser pagination check passed.');}
   finally {await new Promise(r=>fixture.close(r));}
 } finally {
   await browser?.close(); server.kill();

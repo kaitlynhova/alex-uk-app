@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parsePressJob, parsePressList, parseUniversity, sponsorKey, collectSource } from '../lib/sources.mjs';
+import { parsePressJob, parsePressList, parseUniversity, sponsorKey, collectSource, htmlText } from '../lib/sources.mjs';
+import { reviewFingerprint, reviewedJob } from '../lib/job-reviews.mjs';
 import { refreshJobs } from '../scripts/refresh-jobs.mjs';
+import { collectICIMS } from '../lib/regional-sources.mjs';
 
 const pressURL='https://careers.cambridge.org/jobs/vacancy/social-media-manager-cambridge/123/description/';
 const pressHTML=`<main><h1>Social Media Manager</h1><ul><li>Salary: £45,000</li><li>Location: Cambridge</li><li>Country: UK</li><li>Business Unit: Academic</li><li>Vacancy Type: Permanent</li><li>Closing Date: 25 October 2026</li></ul><p>Job Title: Social Media Manager</p><a href="/apply/123">Apply now</a></main>`;
@@ -45,4 +47,36 @@ test('refresh reports partial and failed sources without keeping unverifiable jo
   assert.deepEqual(data.sources.map(s=>s.status),['ok','unavailable','partial','unavailable']);
   assert.equal(data.orgs['blocked|london'],undefined);
   assert.equal(data.orgs['good|london'][0].verifiedAt,new Date(now).toISOString());
+});
+
+test('Irish jobs survive refresh without being presented as UK locations',async()=>{
+  const now=Date.parse('2026-10-26T12:00:00Z');
+  const data=await refreshJobs({now,output:null,sources:[{id:'group',name:'Group',sponsorName:'Group UK Ltd'}],register:{orgs:[['Group UK Ltd','London','',[]]]},collector:async()=>({seen:3,jobs:[
+    {t:'Marketing Manager',l:'Dublin',country:'IE',u:'https://example.org/ie',evidence:'Active feed'},
+    {t:'Content Strategist',l:'Glasgow',u:'https://example.org/gb',evidence:'Active feed'},
+    {t:'Marketing Manager',l:'Dublin, CA',country:'US',u:'https://example.org/us',evidence:'Active feed'}]})});
+  assert.equal(data.orgs['group uk ltd|london'].length,2);
+  assert.deepEqual(data.sources[0].regions,{scotland:1,ireland:1,'northern-ireland':0});
+  assert.equal(data.sources[0].outsideSupportedLocations,1);
+});
+test('iCIMS scans every page and requires active application flags plus a matching detail page',async()=>{
+  const source={url:'https://careers.example.org/jobs'};
+  const entry=(id,title,applyable=true)=>({data:{req_id:id,title,applyable,searchable:true,internal:false,full_location:'Dublin, Ireland',country_code:'IE',meta_data:{canonical_url:'https://careers.example.org/jobs/'+id}}});
+  const fetcher=async url=>{
+    if(url.includes('/api/'))return{totalCount:3,jobs:url.includes('page=1')?[entry('1','Engineer')]:[entry('2','Thought Leadership Lead'),entry('3','Marketing Manager',false)]};
+    return '<script type="application/ld+json">'+JSON.stringify({'@type':'JobPosting',title:'Thought Leadership Lead',validThrough:'2099-11-02',jobLocation:{address:{addressLocality:'Dublin',addressCountry:'Ireland'}}})+'</script>';
+  };
+  const data=await collectICIMS(source,fetcher);
+  assert.equal(data.seen,3);assert.equal(data.jobs.length,1);assert.equal(data.jobs[0].country,'Ireland');assert.equal(data.failed,0);
+  await assert.rejects(()=>collectICIMS(source,async()=>({totalCount:2,jobs:[entry('1','Engineer')]})),/pagination stalled/);
+});
+test('descriptions decode HTML entities and preserve word boundaries',()=>{
+  assert.equal(htmlText('&lt;p&gt;Own thought leadership&lt;/p&gt;&lt;p&gt;Write executive communications&lt;/p&gt;'),'Own thought leadership Write executive communications');
+});
+test('review notes are invalidated when the job changes',()=>{
+  const j={t:'Marketing Manager',l:'Dublin',country:'IE',description:'Own AI content strategy.',u:'https://example.org/job'};
+  const reviews={[j.u]:{fingerprint:reviewFingerprint(j),summary:'Related experience',caveat:'Confirm requirements'}};
+  assert.equal(reviewedJob(j,reviews).review.summary,'Related experience');
+  assert.equal(reviewedJob({...j,l:'New York'},reviews).review,undefined);
+  assert.equal(reviewedJob({...j,description:'New requirements'},reviews).review,undefined);
 });

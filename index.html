@@ -126,14 +126,14 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;overflow:hidde
 .toast.show{opacity:1}
 .note{font-size:12.5px;color:var(--muted);margin-top:28px;border-top:1px solid var(--line);padding-top:14px;max-width:80ch}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
-.coverage{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:20px}.coverage p{color:var(--muted);font-size:13px;margin:8px 0}.coverage summary{cursor:pointer;color:var(--accent);font-size:13px}.coverage-row{padding:10px 0;border-top:1px solid var(--line);font-size:13px}.coverage-row:first-child{margin-top:12px}.coverage-row small{display:block;color:var(--muted)}.coverage-row .err{font-size:12px}.jobs li{padding:8px 0}.jobs .reason{color:var(--accent);font-size:12px;display:block;margin:3px 0}.coverage button:disabled{opacity:.6;cursor:wait}.unverified{font-size:12px;color:var(--muted);margin-top:8px}
+.coverage{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:20px}.coverage p{color:var(--muted);font-size:13px;margin:8px 0}.coverage summary{cursor:pointer;color:var(--accent);font-size:13px}.coverage-row{padding:10px 0;border-top:1px solid var(--line);font-size:13px}.coverage-row:first-child{margin-top:12px}.coverage-row small{display:block;color:var(--muted)}.coverage-row .err{font-size:12px}.jobs li{padding:8px 0}.review-note{display:block;border-left:2px solid var(--line-strong);padding:5px 9px;margin:7px 0;font-size:12px;color:var(--muted)}.jobs .reason{color:var(--accent);font-size:12px;display:block;margin:3px 0}.coverage button:disabled{opacity:.6;cursor:wait}.unverified{font-size:12px;color:var(--muted);margin-top:8px}
 </style>
 
 <div class="wrap">
 <header class="top">
   <div class="brand">
-    <h1>UK Sponsor Finder for Alex Cannon</h1>
-    <p>Live UK opportunities in marketing, thought leadership and executive communications, matched to <a href="https://alexandracannon.com/" target="_blank" rel="noopener">Alex’s experience</a> and the sponsor register. Each result includes a direct job link, a match reason and a verification time.</p>
+    <h1>UK &amp; Ireland Job Finder for Alex Cannon</h1>
+    <p>Live UK and Ireland opportunities in marketing, thought leadership and executive communications, matched to <a href="https://alexandracannon.com/" target="_blank" rel="noopener">Alex’s experience</a> and the sponsor register. Each result includes a direct job link, a match reason and a verification time.</p>
   </div>
   <div class="source" id="source">
     <div>Source <b>gov.uk · Register of licensed sponsors: workers</b></div>
@@ -163,6 +163,12 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;overflow:hidde
       <input type="search" id="q" placeholder="Employer or role, e.g. Cambridge" aria-label="Search employer or role" autocomplete="off"></label>
     <p class="hint">Search employers and verified job titles. Coverage is shown above the results.</p>
   </div>
+  <div class="group">
+    <h2>Job location</h2>
+    <div class="chips" id="townchips"></div>
+    <p class="hint">Scotland includes Scottish cities and explicit UK-wide remote roles. Ireland means the Republic; Northern Ireland is separate. Pick multiple locations to combine them. Filters apply to each posting.</p>
+    <input type="text" id="town" placeholder="Other location" aria-label="Other location" autocomplete="off" style="margin-top:8px">
+  </div>
   <div class="group"><h2>Role focus</h2><div class="chips" id="rolechips"></div><p class="hint">Matches job titles and responsibilities, not employer names.</p><label class="switch" style="margin-top:10px"><input type="checkbox" id="senioronly"><span>Senior / leadership titles only</span></label></div>
   <div class="group">
     <h2>Employer sectors (optional)</h2>
@@ -170,15 +176,9 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;overflow:hidde
     <p class="hint">Keyword matches on the organisation name. The register has no industry field, so treat these as a starting point, not a verdict.</p>
   </div>
   <div class="group">
-    <h2>Job location</h2>
-    <div class="chips" id="townchips"></div>
-    <p class="hint">Uses the posting’s location for verified jobs; registered address when browsing all sponsors.</p>
-    <input type="text" id="town" placeholder="Other location" aria-label="Other location" autocomplete="off" style="margin-top:8px">
-  </div>
-  <div class="group">
-    <h2>Sponsor route</h2>
+    <h2>UK register route</h2>
     <div class="chips" id="routes"></div>
-    <p class="hint">Skilled Worker is the route for a full-time hire. Clear all to see every route.</p>
+    <p class="hint">Filters the linked UK register entity. These routes do not apply to an Irish vacancy. Clear all to see every route.</p>
   </div>
   <div class="group">
     <h2>Rating</h2>
@@ -209,7 +209,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;overflow:hidde
   <section class="coverage" aria-label="Job source coverage">
     <div class="results-head"><strong>Verified opportunities</strong><button class="ghost" id="refreshjobs">Refresh live jobs</button></div>
     <p id="feedstatus" role="status">Loading vacancy checks…</p>
-    <details id="coveragedetails"><summary id="coveragesummary">Employer source coverage</summary><p class="hint">These are the employers checked directly. The full sponsor register is searchable below, but is not a complete UK vacancy feed. Unavailable sources do not mean no jobs.</p><div id="coverage-list"></div></details>
+    <details id="coveragedetails"><summary id="coveragesummary">Employer source coverage</summary><p class="hint">These are the employers checked directly. The UK sponsor register is searchable below, but is not a complete UK vacancy feed. Unavailable sources do not mean no jobs.</p><div id="coverage-list"></div></details>
   </section>
   <section class="loader" id="loader" hidden>
     <h2>Load a newer register</h2>
@@ -241,7 +241,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;overflow:hidde
     <div class="more" id="more" hidden><button class="ghost" id="morebtn">Show more</button></div>
   </div>
 
-  <p class="note">A sponsor licence does not guarantee sponsorship for a particular job. Check the vacancy’s terms. Verified matches come from the employer sources listed above, expire after 24 hours, and are removed after a failed recheck or their closing date. A posting can close between checks. Role matching is a transparent keyword screen based on Alex’s marketing, content strategy, thought leadership and executive communications work; review the full requirements before applying.</p>
+  <p class="note">UK register status does not guarantee sponsorship for a particular job. Irish hiring entities and employment-permit support are unverified; a UK licence does not cover Ireland. <a href="https://enterprise.gov.ie/en/what-we-do/workplace-and-skills/employment-permits/" target="_blank" rel="noopener">Ireland employment permits</a>. Check the vacancy’s terms. Verified matches come from the employer sources listed above, expire after 24 hours, and are removed after a failed recheck or their closing date. A posting can close between checks. Role matching is a transparent keyword screen based on Alex’s marketing, content strategy, thought leadership and executive communications work; review the full requirements before applying.</p>
 </main>
 </div>
 </div>
