@@ -1,0 +1,96 @@
+[
+  {
+    "id": "cambridge-press",
+    "name": "Cambridge University Press & Assessment",
+    "sponsorName": "Cambridge University Press & Assessment",
+    "type": "cambridge-press",
+    "url": "https://careers.cambridge.org/jobs/vacancy/find/results/"
+  },
+  {
+    "id": "cambridge-university",
+    "name": "University of Cambridge",
+    "sponsorName": "The University of Cambridge",
+    "type": "cambridge-university",
+    "url": "https://www.cam.ac.uk/jobs/search"
+  },
+  {
+    "id": "anthropic",
+    "name": "Anthropic",
+    "sponsorName": "Anthropic Limited",
+    "type": "greenhouse",
+    "board": "anthropic",
+    "url": "https://www.anthropic.com/careers"
+  },
+  {
+    "id": "monzo",
+    "name": "Monzo",
+    "sponsorName": "Monzo Bank Ltd",
+    "type": "greenhouse",
+    "board": "monzo",
+    "url": "https://monzo.com/careers"
+  },
+  {
+    "id": "figma",
+    "name": "Figma",
+    "sponsorName": "Figma UK Limited",
+    "type": "greenhouse",
+    "board": "figma",
+    "url": "https://www.figma.com/careers/"
+  },
+  {
+    "id": "cultureamp",
+    "name": "Culture Amp",
+    "sponsorName": "Culture Amp Limited",
+    "type": "greenhouse",
+    "board": "cultureamp",
+    "url": "https://www.cultureamp.com/company/careers"
+  },
+  {
+    "id": "gocardless",
+    "name": "GoCardless",
+    "sponsorName": "GoCardless Limited",
+    "type": "greenhouse",
+    "board": "gocardless",
+    "url": "https://boards.greenhouse.io/gocardless"
+  },
+  {
+    "id": "duolingo",
+    "name": "Duolingo",
+    "sponsorName": "Duolingo UK Limited",
+    "type": "greenhouse",
+    "board": "duolingo",
+    "url": "https://boards.greenhouse.io/duolingo"
+  },
+  {
+    "id": "coursera",
+    "name": "Coursera",
+    "sponsorName": "Coursera UK Limited",
+    "type": "greenhouse",
+    "board": "coursera",
+    "url": "https://boards.greenhouse.io/coursera"
+  },
+  {
+    "id": "intercom",
+    "name": "Intercom",
+    "sponsorName": "Intercom Software UK Limited",
+    "type": "greenhouse",
+    "board": "intercom",
+    "url": "https://boards.greenhouse.io/intercom"
+  },
+  {
+    "id": "deliveroo",
+    "name": "Deliveroo",
+    "sponsorName": "Roofoods Ltd t/a Deliveroo",
+    "type": "greenhouse",
+    "board": "deliveroo",
+    "url": "https://boards.greenhouse.io/deliveroo"
+  },
+  {
+    "id": "databricks",
+    "name": "Databricks",
+    "sponsorName": "Databricks UK Limited",
+    "type": "greenhouse",
+    "board": "databricks",
+    "url": "https://boards.greenhouse.io/databricks"
+  }
+]

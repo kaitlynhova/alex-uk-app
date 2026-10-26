@@ -1,0 +1,21 @@
+{
+  "name": "alex-cannon-sponsor-finder",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node server.mjs",
+    "refresh": "node scripts/refresh-jobs.mjs",
+    "import-register": "node scripts/import-register.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "test:browser": "node tests/browser.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "cheerio": "1.1.2",
+    "playwright": "1.58.2"
+  }
+}
